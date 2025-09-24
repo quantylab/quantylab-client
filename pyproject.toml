@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quantylab-client"
-version = "1.0"
+version = "1.0.6"
 description = ""
 authors = [
     { name = "Quantylab", email = "quantylab@gmail.com" }
@@ -23,4 +23,4 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["quantylab.*"]
+include = ["*"]

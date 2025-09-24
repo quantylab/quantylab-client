@@ -1,5 +1,6 @@
 import time
-from datetime import datetime, timezone
+import datetime
+from pytz import timezone
 
 import pandas as pd
 import requests
@@ -11,7 +12,7 @@ FORMAT_DATE = "%Y%m%d"
 
 
 def get_today():
-    dt = datetime.fromtimestamp(time.time(), timezone("Asia/Seoul"))
+    dt = datetime.datetime.fromtimestamp(time.time(), timezone("Asia/Seoul"))
     date = dt.date()
     return date
 
@@ -22,7 +23,7 @@ def get_today_str():
 
 
 def parse_date_str(date_str):
-    return datetime.strptime(date_str, FORMAT_DATE)
+    return datetime.datetime.strptime(date_str, FORMAT_DATE)
 
 
 def get_past_date(n=20, base_date=None):
@@ -54,17 +55,22 @@ class QuantylabRestApiClient:
         self.token = token
         self.last_request_time = 0
         self.headers = {
-            "Authorization": f'Bearer {token}',
+            "Authorization": f"Bearer {token}",
         }
 
     def _fetch_all_pages(self, url):
         data = []
         while True:
-            res = requests.get(url, headers=self.headers).json()
-            data.extend(res["results"])
-            if not res.get("next"):
+            res = requests.get(url, headers=self.headers)
+            if res.status_code != 200:
+                raise Exception(f"Request failed: {res.status_code} {res.text}")
+            _data = res.json()
+            if not _data:
                 break
-            url = res.get("next")
+            data.extend(_data["data"])
+            if not _data.get("next"):
+                break
+            url = f"{API_BASE}{_data.get('next')}"
             time.sleep(DEFAULT_REQ_INTERVAL)
         return data
 
@@ -74,7 +80,7 @@ class QuantylabRestApiClient:
             end_date = get_today_str()
         if start_date is None:
             start_date = get_past_date_str(20, base_date=end_date)
-        url = f'{API_BASE}/stock-market-candles?code={code}&start_date={start_date}&end_date={end_date}'
+        url = f"{API_BASE}/stock-market-candles?code={code}&start_date={start_date}&end_date={end_date}"
         data = self._fetch_all_pages(url)
         df = pd.DataFrame(data)
         return df
@@ -85,7 +91,7 @@ class QuantylabRestApiClient:
             end_date = get_today_str()
         if start_date is None:
             start_date = get_past_date_str(20, base_date=end_date)
-        url = f'{API_BASE}/stock-fa/?code={code}&start_date={start_date}&end_date={end_date}'
+        url = f"{API_BASE}/stock-fa/?code={code}&start_date={start_date}&end_date={end_date}"
         data = self._fetch_all_pages(url)
         df = pd.DataFrame(data)
         return df
@@ -93,14 +99,14 @@ class QuantylabRestApiClient:
     @req
     def get_investor_top_net_buy_stocks(self, year, investor_type):
         assert investor_type in ["ind", "inst", "foreign"]
-        url = f'{API_BASE}/investor-top-net-buy-stocks/?year={year}&investor_type={investor_type}'
+        url = f"{API_BASE}/investor-top-net-buy-stocks/?year={year}&investor_type={investor_type}"
         data = self._fetch_all_pages(url)
         df = pd.DataFrame(data)
         return df
 
     @req
     def get_yearly_investor_avg_profits(self, year):
-        url = f'{API_BASE}/yearly-investor-avg-profits/?year={year}'
+        url = f"{API_BASE}/yearly-investor-avg-profits/?year={year}"
         data = self._fetch_all_pages(url)
         df = pd.DataFrame(data)
         return df
